@@ -1,7 +1,7 @@
 const express = require("express");
 const tax = express.Router();
 const jwt = require("jsonwebtoken");
-const database = require("../Configure/Database");
+const database = require("../../Configure/Database");
 
 //  GET TAX DETAILS
 tax.get("/details/:tax_id", (req, res) => {
@@ -39,6 +39,7 @@ tax.get("/details/:tax_id", (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
+      message : "internalServerError",
       error,
     });
   }
@@ -91,6 +92,7 @@ tax.post("/create", (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
+      message : "internalServerError",
       error,
     });
   }

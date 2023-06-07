@@ -1,9 +1,9 @@
 const express = require("express");
 const pay = express.Router();
 const Razorpay = require("razorpay");
-const database = require("../Configure/Database");
+const database = require("../../Configure/Database");
 const {validatePaymentVerification} = require("razorpay/dist/utils/razorpay-utils");
-const dateForToday = require("../Helper/dateCreater");
+const dateForToday = require("../../Helper/dateCreater");
 
 pay.get("/verify", (req, res) => {
   try {
@@ -151,6 +151,7 @@ pay.get("/verify", (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
+      message : "internalServerError",
       error,
     });
   }

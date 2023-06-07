@@ -1,5 +1,5 @@
 const express = require("express");
-const database = require("../Configure/Database");
+const database = require("../../Configure/Database");
 const admin = express.Router();
 const jwt = require("jsonwebtoken");
 
@@ -58,100 +58,103 @@ admin.post("/admin/create", (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
+      message: "internalServerError",
       error,
     });
   }
 });
 
 // CUSTOMERS LIST
-admin.get("/customers", (req, res)=>{
+admin.get("/customers", (req, res) => {
   try {
-    const headerkey = process.env.JWT_HEADER_KEY
-    const securekey = process.env.JWT_SECURE_KEY
-    const header = req.header(headerkey)
-    const verify = jwt.verify(header, securekey)
+    const headerkey = process.env.JWT_HEADER_KEY;
+    const securekey = process.env.JWT_SECURE_KEY;
+    const header = req.header(headerkey);
+    const verify = jwt.verify(header, securekey);
     if (verify) {
-      const customersQuery = `SELECT * FROM customers WHERE user_ifdeleted='0'`
-      database.query(customersQuery, (err, results)=>{
+      const customersQuery = `SELECT * FROM customers WHERE user_ifdeleted='0'`;
+      database.query(customersQuery, (err, results) => {
         if (err) {
           res.status(400).json({
-            success : false,
-            message : "Having technical issues",
-            err
-          })
+            success: false,
+            message: "Having technical issues",
+            err,
+          });
         } else {
           if (results.length === 0) {
             res.status(400).json({
-              success : false,
-              message : "No customers found"
-            })
+              success: false,
+              message: "No customers found",
+            });
           } else {
             res.status(200).json({
-              success : true,
-              message : "Succesfully found customers",
-              results
-            })
+              success: true,
+              message: "Succesfully found customers",
+              results,
+            });
           }
         }
-      })
+      });
     } else {
       res.status(401).json({
-        success : false,
-        message : "invalidToken"
-      })
+        success: false,
+        message: "invalidToken",
+      });
     }
   } catch (error) {
     res.status(500).json({
-      success : false,
-      error
-    })
+      success: false,
+      message: "internalServerError",
+      error,
+    });
   }
-})
+});
 
 // GET CUSTOMER WITH MOBILE NUMBER
-admin.get("/customer/:number", (req, res)=>{
+admin.get("/customer/:number", (req, res) => {
   try {
-    const headerkey = process.env.JWT_HEADER_KEY
-    const securekey = process.env.JWT_SECURE_KEY
-    const header = req.header(headerkey)
-    const verify = jwt.verify(header, securekey)
+    const headerkey = process.env.JWT_HEADER_KEY;
+    const securekey = process.env.JWT_SECURE_KEY;
+    const header = req.header(headerkey);
+    const verify = jwt.verify(header, securekey);
     if (verify) {
-      const customersQuery = `SELECT * FROM customers WHERE user_mobile='${req.params.number}' AND user_ifdeleted='0'`
-      database.query(customersQuery, (err, results)=>{
+      const customersQuery = `SELECT * FROM customers WHERE user_mobile='${req.params.number}' AND user_ifdeleted='0'`;
+      database.query(customersQuery, (err, results) => {
         if (err) {
           res.status(400).json({
-            success : false,
-            message : "Having technical issues",
-            err
-          })
+            success: false,
+            message: "Having technical issues",
+            err,
+          });
         } else {
           if (results.length === 0) {
             res.status(200).json({
-              success : false,
-              message : "No customer found"
-            })
+              success: false,
+              message: "No customer found",
+            });
           } else {
             res.status(200).json({
-              success : true,
-              message : "Succesfully found customer",
-              results
-            })
+              success: true,
+              message: "Succesfully found customer",
+              results,
+            });
           }
         }
-      })
+      });
     } else {
       res.status(401).json({
-        success : false,
-        message : "invalidToken"
-      })
+        success: false,
+        message: "invalidToken",
+      });
     }
   } catch (error) {
     res.status(500).json({
-      success : false,
-      error
-    })
+      success: false,
+      message: "internalServerError",
+      error,
+    });
   }
-})
+});
 
 // AUTHENTICATION CHECK
 admin.get("/auth", (req, res) => {
@@ -196,6 +199,7 @@ admin.get("/auth", (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
+      message: "internalServerError",
       error,
     });
   }
@@ -259,6 +263,7 @@ admin.post("/login", (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
+      message: "internalServerError",
       error,
     });
   }
@@ -311,6 +316,83 @@ admin.get("/profile", (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
+      message: "internalServerError",
+      error,
+    });
+  }
+});
+
+admin.get("/upgrades", (req, res) => {
+  try {
+    const headerkey = process.env.JWT_HEADER_KEY;
+    const securekey = process.env.JWT_SECURE_KEY;
+
+    const header = req.header(headerkey);
+    const verify = jwt.verify(header, securekey);
+
+    if (verify) {
+      const listUpdates = [
+        {
+          id: "SRJ-3045",
+          amt: 4000,
+          update_msg: "Export/Download Sales Report In Excel/Pdf Format.",
+        },
+        {
+          id: "SRJ-3046",
+          amt: 4500,
+          update_msg: "List Of Sales Reports With Date/Status Filter.",
+        },
+        {
+          id: "SRJ-3047",
+          amt: 3500,
+          update_msg: "Add New Option To Show All Sales Reports.",
+        },
+        {
+          id: "SRJ-3048",
+          amt: 4500,
+          update_msg: "Verify Customer Mobile Number With OTP On Sale Adding.",
+        },
+        {
+          id: "SRJ-3049",
+          amt: 4500,
+          update_msg: "View List Of All Orders By Customer Mobile Number.",
+        },
+        {
+          id: "SRJ-3050",
+          amt: 4500,
+          update_msg: "Get List Of All Works By WorkShop Name.",
+        },
+        {
+          id: "SRJ-3051",
+          amt: 4500,
+          update_msg: "Get All Stock Used Data By Each Order",
+        },
+        {
+          id: "SRJ-3052",
+          amt: 2000,
+          update_msg: "Search Order/Customer By Name Sync",
+        },
+        {
+          id: "SRJ-3053",
+          amt: 3500,
+          update_msg: "Get List of all Payment Transaction Based on Each Order",
+        },
+      ];
+
+      res.status(200).json({
+        success: true,
+        upgrades: listUpdates,
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        message: "invalidToken",
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "internalServerError",
       error,
     });
   }

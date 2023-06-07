@@ -1,7 +1,7 @@
 const express = require("express");
 const txn = express.Router();
 const jwt = require("jsonwebtoken");
-const database = require("../Configure/Database");
+const database = require("../../Configure/Database");
 
 txn.get("/list", (req, res) => {
   try {

@@ -1,11 +1,11 @@
 const express = require("express");
-const workshop = express.Router();
+const workdata = express.Router();
 const jwt = require("jsonwebtoken");
-const database = require("../Configure/Database");
-const dateForToday = require("../Helper/dateCreater");
+const database = require("../../Configure/Database");
+const dateForToday = require("../../Helper/dateCreater");
 
-// WORKSHOP LIST
-workshop.get("/list", (req, res) => {
+// WORKDATA LIST
+workdata.get("/list", (req, res) => {
   try {
     const headerkey = process.env.JWT_HEADER_KEY;
     const securekey = process.env.JWT_SECURE_KEY;
@@ -13,8 +13,22 @@ workshop.get("/list", (req, res) => {
     const header = req.header(headerkey);
     const verify = jwt.verify(header, securekey);
     if (verify) {
-      const sql = `SELECT * FROM workshop WHERE workshop_ifdeleted='0'`;
-      database.query(sql, (err, results) => {
+
+      const workshopDetails = async(workshopId)=>{
+      return new Promise((resolve, reject)=>{
+      const sql = `SELECT * FROM workshop WHERE workshop_id='${workshopId}' AND workshop_ifdeleted='0'`;
+      database.query(sql, (err, workshop) => {
+        if (err) {
+            reject(err)
+        }else{
+          resolve(workshop)
+        }
+      })
+        })
+      }
+      
+      const sql = `SELECT * FROM workdata WHERE workdata_ifdeleted='0'`;
+      database.query(sql, async(err, results) => {
         if (err) {
           res.status(400).json({
             success: false,
@@ -22,9 +36,16 @@ workshop.get("/list", (req, res) => {
             err,
           });
         } else {
+
+          for (let i = 0; i < results.length; i++) {
+            const workshopID = results[i].workshop_id
+            results[i].workshop = await workshopDetails(workshopID)
+            
+          }
+          
           res.status(200).json({
             success: true,
-            message: "Succesfully found workshop lists",
+            message: "Succesfully found workdata lists",
             results,
           });
         }
@@ -42,8 +63,8 @@ workshop.get("/list", (req, res) => {
     });
   }
 });
-// WORKSHOP UNIQUE ID
-workshop.get("/:workshop_id", (req, res) => {
+// WORKDATA UNIQUE ID
+workdata.get("/:input_id", (req, res) => {
   try {
     const headerkey = process.env.JWT_HEADER_KEY;
     const securekey = process.env.JWT_SECURE_KEY;
@@ -51,10 +72,25 @@ workshop.get("/:workshop_id", (req, res) => {
     const header = req.header(headerkey);
     const verify = jwt.verify(header, securekey);
     if (verify) {
-      const workshopId = req.params.workshop_id;
+      const workshopId = req.params.input_id;
 
-      const sql = `SELECT * FROM workshop WHERE workshop_id ='${workshopId}' OR workshop_number='${workshopId}' AND workshop_ifdeleted='0'`;
-      database.query(sql, (err, results) => {
+      
+      const workshopDetails = async(workshopId)=>{
+        return new Promise((resolve, reject)=>{
+        const sql = `SELECT * FROM workshop WHERE workshop_id='${workshopId}' AND workshop_ifdeleted='0'`;
+        database.query(sql, (err, workshop) => {
+          if (err) {
+              reject(err)
+          }else{
+            resolve(workshop)
+          }
+        })
+          })
+        }
+        
+
+      const sql = `SELECT * FROM workdata WHERE workdata_id ='${workshopId}' OR workshop_id='${workshopId}' AND workdata_ifdeleted='0'`;
+      database.query(sql, async(err, results) => {
         if (err) {
           res.status(400).json({
             success: false,
@@ -65,18 +101,18 @@ workshop.get("/:workshop_id", (req, res) => {
           if (results.length === 0) {
             res.status(400).json({
               success: false,
-              message: "Workshop not found",
+              message: "Workdata not found",
             });
-          } else {
-            const details = {
-              workshop_id: results[0].workshop_id,
-              workshop_name: results[0].workshop_name,
-              workshop_number: results[0].workshop_number,
-            };
+          } else {  
+          for (let i = 0; i < results.length; i++) {
+            const workshopID = results[i].workshop_id
+            results[i].workshop = await workshopDetails(workshopID)
+            
+          }
             res.status(200).json({
               success: true,
-              message: "Successfully found workshop",
-              details,
+              message: "Successfully found workdata",
+              results,
             });
           }
         }
@@ -94,8 +130,8 @@ workshop.get("/:workshop_id", (req, res) => {
     });
   }
 });
-// WORKSHOP CREATE
-workshop.post("/create", (req, res) => {
+// WORKDATA CREATE
+workdata.post("/create", (req, res) => {
   try {
     const headerkey = process.env.JWT_HEADER_KEY;
     const securekey = process.env.JWT_SECURE_KEY;
@@ -105,10 +141,11 @@ workshop.post("/create", (req, res) => {
     if (verify) {
       const id = Math.floor(10000000 + Math.random() * 99999999);
 
-      const workshopcreateQuery = `INSERT INTO workshop(workshop_id, workshop_name, workshop_number,
-             workshop_status, workshop_ifdeleted, created) VALUES('${id}', '${req.body.workshop_name}',
-              '${req.body.workshop_number}', '0', '0', '${dateForToday}')`;
-      database.query(workshopcreateQuery, (err, results) => {
+      const workDatacreateQuery = `INSERT INTO workdata(workdata_id, workshop_id, forwared_wt, received_wt,
+             workdata_status, workdata_ifdeleted, created) VALUES('${id}', '${req.body.workshop_id}', '${req.body.forwared_wt}',
+             '${req.body.received_wt}', '0', '0', '${dateForToday}')`;
+
+      database.query(workDatacreateQuery, (err, results) => {
         if (err) {
           res.status(400).json({
             success: false,
@@ -118,7 +155,7 @@ workshop.post("/create", (req, res) => {
         } else {
           res.status(200).json({
             success: true,
-            message: "Succesfully added workshop.",
+            message: "Succesfully added workdata.",
             results,
           });
         }
@@ -136,8 +173,8 @@ workshop.post("/create", (req, res) => {
     });
   }
 });
-// WORKSHOP UPDATE
-workshop.put("/update/:workshop_id", (req, res) => {
+// WORKDATA UPDATE
+workdata.put("/update/:workdata_id", (req, res) => {
   try {
     const headerkey = process.env.JWT_HEADER_KEY;
     const securekey = process.env.JWT_SECURE_KEY;
@@ -145,9 +182,9 @@ workshop.put("/update/:workshop_id", (req, res) => {
     const header = req.header(headerkey);
     const verify = jwt.verify(header, securekey);
     if (verify) {
-      const workshopId = req.params.workshop_id;
+      const workdataId = req.params.workdata_id;
 
-      const sql = `SELECT * FROM workshop WHERE workshop_id ='${workshopId}' AND workshop_ifdeleted='0'`;
+      const sql = `SELECT * FROM workdata WHERE workdata_id ='${workdataId}' OR workshop_id='${workdataId}' AND workdata_ifdeleted='0'`;
       database.query(sql, (err, results) => {
         if (err) {
           res.status(400).json({
@@ -163,8 +200,8 @@ workshop.put("/update/:workshop_id", (req, res) => {
               err,
             });
           } else {
-            const updateWorkShopQuery = `UPDATE workshop SET workshop_name='${req.body.workshop_name}', workshop_number='${req.body.workshop_number}'
-                    WHERE workshop_id='${workshopId}' AND workshop_ifdeleted='0'`;
+            const updateWorkShopQuery = `UPDATE workdata SET workshop_id='${req.body.workshop_id}', forwared_wt='${req.body.forwared_wt}', received_wt='${req.body.received_wt}',
+            workdata_status = '${req.body.workdata_status}' WHERE workdata_id ='${workdataId}'`;
 
             database.query(updateWorkShopQuery, (err, updateResults) => {
               if (err) {
@@ -176,8 +213,7 @@ workshop.put("/update/:workshop_id", (req, res) => {
               } else {
                 res.status(200).json({
                   success: true,
-                  message: "Succesfully updated workshop.",
-                  updateResults,
+                  message: "Succesfully updated workdata.",
                 });
               }
             });
@@ -197,8 +233,8 @@ workshop.put("/update/:workshop_id", (req, res) => {
     });
   }
 });
-// WORKSHOP DELETE
-workshop.delete("/delete/:workshop_id", (req, res) => {
+// WORKDATA DELETE
+workdata.delete("/delete/:workdata_id", (req, res) => {
   try {
     const headerkey = process.env.JWT_HEADER_KEY;
     const securekey = process.env.JWT_SECURE_KEY;
@@ -206,9 +242,9 @@ workshop.delete("/delete/:workshop_id", (req, res) => {
     const header = req.header(headerkey);
     const verify = jwt.verify(header, securekey);
     if (verify) {
-      const workshopId = req.params.workshop_id;
+      const workId = req.params.workdata_id;
 
-      const sql = `SELECT * FROM workshop WHERE workshop_id ='${workshopId}' AND workshop_ifdeleted='0'`;
+      const sql = `SELECT * FROM workdata WHERE workdata_id='${workId}' OR workshop_id ='${workId}' AND workdata_ifdeleted='0'`;
       database.query(sql, (err, results) => {
         if (err) {
           res.status(400).json({
@@ -220,14 +256,14 @@ workshop.delete("/delete/:workshop_id", (req, res) => {
           if (results.length === 0) {
             res.status(400).json({
               success: false,
-              message: "Workshop not found",
+              message: "Workdata not found",
               err,
             });
           } else {
-            const deleteWorkShopQuery = `UPDATE workshop SET workshop_ifdeleted='1'
-                        WHERE workshop_id='${workshopId}' AND workshop_ifdeleted='0'`;
+            const deleteWorkDataQuery = `UPDATE workdata SET workdata_ifdeleted='1'
+                        WHERE workdata_id='${workId}'`;
 
-            database.query(deleteWorkShopQuery, (err, delResults) => {
+            database.query(deleteWorkDataQuery, (err, delResults) => {
               if (err) {
                 res.status(400).json({
                   success: false,
@@ -237,7 +273,7 @@ workshop.delete("/delete/:workshop_id", (req, res) => {
               } else {
                 res.status(200).json({
                   success: true,
-                  message: "Succesfully deleted workshop.",
+                  message: "Succesfully deleted workdata.",
                 });
               }
             });
@@ -258,4 +294,4 @@ workshop.delete("/delete/:workshop_id", (req, res) => {
   }
 });
 
-module.exports = workshop;
+module.exports = workdata;

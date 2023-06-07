@@ -1,9 +1,9 @@
 const express = require("express");
 const sales = express.Router();
 const jwt = require("jsonwebtoken");
-const database = require("../Configure/Database");
-const paymentLink = require("../Helper/paymentLink");
-const dateForToday = require("../Helper/dateCreater");
+const database = require("../../Configure/Database");
+const paymentLink = require("../../Helper/paymentLink");
+const dateForToday = require("../../Helper/dateCreater");
 
 // SINGLE SALE
 sales.get("/:sale_id", (req, res) => {
@@ -357,7 +357,7 @@ sales.put("/update/:sale_id", (req, res) => {
     const headerkey = process.env.JWT_HEADER_KEY;
     const securekey = process.env.JWT_SECURE_KEY;
 
-    const header = req.header(headerkey);
+    const header = req.header(headerkey); 
     const verify = jwt.verify(header, securekey);
     if (verify) {
       const saleDetailsUpdate = async (saleId) => {
@@ -426,7 +426,9 @@ sales.put("/update/:sale_id", (req, res) => {
               1000000 + Math.random() * 9999999
             )}', '${req.body.user_id}', '${
               req.body.user_mobile
-            }', '${saleId}', '${req.body.grand_total}', '${req.body.paid_amount}', '${req.body.due_amount}',
+            }', '${saleId}', '${req.body.grand_total}', '${
+              req.body.paid_amount
+            }', '${req.body.due_amount}',
               '${txnMethod}', '0', '0', '${dateForToday}')`;
             database.query(txnQueryPaid, (err, txnResults) => {
               if (err) {
@@ -485,6 +487,146 @@ sales.put("/update/:sale_id", (req, res) => {
               success: true,
               message: "Sale updated succcesfully",
               results,
+            });
+          }
+        }
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        message: "invalidToken",
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error,
+    });
+  }
+});
+
+// DELETE SALE
+sales.delete("/delete/:sale_id", (req, res) => {
+  try {
+    const headerkey = process.env.JWT_HEADER_KEY;
+    const securekey = process.env.JWT_SECURE_KEY;
+
+    const header = req.header(headerkey);
+    const verify = jwt.verify(header, securekey);
+    if (verify) {
+      const saleDetailsUpdate = async (saleId) => {
+        return new Promise((resolve, reject) => {
+          const addonsQuery = `UPDATE sale_details SET sale_ifdeleted='1' WHERE sale_id='${saleId}'`;
+          database.query(addonsQuery, (err, saleDetails) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(saleDetails);
+            }
+          });
+        });
+      };
+
+      const saleAddOnsUpdate = async (saleId) => {
+        return new Promise((resolve, reject) => {
+          const addonsQuery = `UPDATE sale_addons SET sale_ifdeleted='1' WHERE sale_id='${saleId}'`;
+
+          database.query(addonsQuery, (err, addonResults) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(addonResults);
+            }
+          });
+        });
+      };
+
+      const saleExchangeUpdate = async (saleId) => {
+        return new Promise((resolve, reject) => {
+          const exchangeQuery = `UPDATE sale_exchange SET sale_ifdeleted='1' WHERE sale_id='${saleId}'`;
+          database.query(exchangeQuery, (err, exchangeResults) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(exchangeResults);
+            }
+          });
+        });
+      };
+
+      const salePriceDetailsUpdate = async (saleId, txnMethod) => {
+        return new Promise((resolve, reject) => {
+          const pricedetailsQuery = `UPDATE sale_price_details SET sale_ifdeleted='1' WHERE sale_id='${saleId}'`;
+
+          database.query(pricedetailsQuery, (err, pricedetailsResults) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(pricedetailsResults);
+            }
+          });
+
+          if (req.body.due_amount == 0) {
+            const updateSaleDetailsStatusQuery = `UPDATE sale_details SET sale_status='1' WHERE sale_id='${saleId}' AND sale_ifdeleted='0'`;
+            database.query(updateSaleDetailsStatusQuery, (err, Results) => {
+              if (err) {
+                reject(err);
+              } else {
+                const updateSalePriceStatusQuery = `UPDATE sale_price_details SET sale_status='1' WHERE sale_id='${saleId}' AND sale_ifdeleted='0'`;
+                database.query(
+                  updateSalePriceStatusQuery,
+                  (err, dueResults) => {
+                    if (err) {
+                      reject(err);
+                    } else {
+                      resolve(dueResults);
+                    }
+                  }
+                );
+              }
+            });
+          }
+        });
+      };
+
+      const updateTxnDetails = async (saleId) => {
+        return new Promise((resolve, reject) => {
+          const txnQueryPaid = `UPDATE txn_details SET txn_ifdeleted='1' WHERE sale_id='${saleId}'`;
+          database.query(txnQueryPaid, (err, txnResults) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(txnResults);
+            }
+          });
+        });
+      };
+
+      const saleDetailsQuery = `SELECT * FROM sale_details WHERE sale_id='${req.params.sale_id}' AND sale_ifdeleted='0'`;
+      database.query(saleDetailsQuery, async (err, results) => {
+        if (err) {
+          res.status(400).json({
+            success: false,
+            message: "Having technical issues.",
+            err,
+          });
+        } else {
+          if (results.length === 0) {
+            res.status(200).json({
+              success: false,
+              message: "No sale found",
+            });
+          } else {
+            const saleID = results[0].sale_id;
+            const txnMethod = results[0].payment_method;
+            await saleDetailsUpdate(saleID);
+            await saleAddOnsUpdate(saleID);
+            await saleExchangeUpdate(saleID);
+            await salePriceDetailsUpdate(saleID, txnMethod);
+            await updateTxnDetails(saleID);
+            res.status(200).json({
+              success: true,
+              message: "Sale Deleted succcesfully",
             });
           }
         }
@@ -572,14 +714,16 @@ sales.post("/create", (req, res) => {
               1000000 + Math.random() * 9999999
             )}', '${customer}', '${
               req.body.user_mobile
-            }', '${randomNumber}', '${req.body.grand_total}', '${req.body.paid_amount}', '${due_amount}', 
+            }', '${randomNumber}', '${req.body.grand_total}', '${
+              req.body.paid_amount
+            }', '${due_amount}', 
               '${req.body.payment_method}', '0', '0', '${dateForToday}')`;
             database.query(txnQueryPaid, (err, txnResults) => {
               if (err) {
                 reject(err);
               } else {
                 resolve(txnResults);
-                console.log(txnResults)
+                console.log(txnResults);
               }
             });
           }
@@ -645,9 +789,12 @@ sales.post("/create", (req, res) => {
         });
       };
 
-      const saleFunctonsWorkPromises = async (customerId,customerMobile,bodyMobile) => {
+      const saleFunctonsWorkPromises = async (
+        customerId,
+        customerMobile,
+        bodyMobile
+      ) => {
         return new Promise((resolve, reject) => {
-          
           const randomNumber = Math.floor(10000000 + Math.random() * 99999999);
           let txnMethod = req.body.payment_method;
 
@@ -697,7 +844,6 @@ sales.post("/create", (req, res) => {
                   due_amount
                 );
               }
-
             }
           });
         });
@@ -716,7 +862,7 @@ sales.post("/create", (req, res) => {
             const customerID = Math.floor(100000 + Math.random() * 999999);
             const mobile = req.body.user_mobile;
             await saleFunctonsWorkPromises(customerID, mobile);
-            
+
             res.status(200).json({
               success: true,
               message: "Successfully created sale.",
@@ -1009,8 +1155,136 @@ sales.post("/search", (req, res) => {
   }
 });
 
+// SEARCH SALE WITH ID OR MOBILE
+sales.post("/due/search", (req, res) => {
+  try {
+    const headerkey = process.env.JWT_HEADER_KEY;
+    const securekey = process.env.JWT_SECURE_KEY;
+
+    const header = req.header(headerkey);
+    const verify = jwt.verify(header, securekey);
+    if (verify) {
+      const search_input = req.body.search_input;
+
+      const customerDetails = async (customer) => {
+        return new Promise((resolve, reject) => {
+          const customerQuery = `SELECT * FROM customers WHERE user_id ='${customer}' AND user_ifdeleted='0'`;
+          database.query(customerQuery, (err, customerDetails) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(customerDetails);
+            }
+          });
+        });
+      };
+
+      const saleAddOnDetails = async (saleAddOns) => {
+        return new Promise((resolve, reject) => {
+          const customerQuery = `SELECT * FROM sale_addons WHERE sale_id ='${saleAddOns}' AND sale_ifdeleted='0'`;
+          database.query(customerQuery, (err, addOnDetails) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(addOnDetails);
+            }
+          });
+        });
+      };
+
+      const saleExchangeDetails = async (saleExchange) => {
+        return new Promise((resolve, reject) => {
+          const customerQuery = `SELECT * FROM sale_exchange WHERE sale_id ='${saleExchange}' AND sale_ifdeleted='0'`;
+          database.query(customerQuery, (err, exchangeDetails) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(exchangeDetails);
+            }
+          });
+        });
+      };
+
+      const salePriceDetails = async (salePrice) => {
+        return new Promise((resolve, reject) => {
+          const customerQuery = `SELECT * FROM sale_price_details WHERE sale_id ='${salePrice}' AND sale_ifdeleted='0'`;
+          database.query(customerQuery, (err, priceDetails) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(priceDetails);
+            }
+          });
+        });
+      };
+
+      const searchUniqueSaleQuery = `SELECT * FROM sale_details WHERE user_mobile='${search_input}' OR sale_id='${search_input}' AND sale_ifdeleted='0'`;
+
+      database.query(searchUniqueSaleQuery, async (err, results) => {
+        if (err) {
+          res.status(400).json({
+            success: false,
+            message: "Having some internal issues.",
+            err,
+          });
+        } else {
+          if (results.length === 0) {
+            res.status(200).json({
+              success: false,
+              message:
+                "There is no sale registered on This mobile number or sale id.",
+            });
+          } else {
+            const dueSaleWithSearch = `SELECT * FROM sale_details WHERE sale_status='0'`
+            database.query(dueSaleWithSearch, async(err, dueResults)=>{
+              if (err) {
+                res.status(400).json({
+                  success : false,
+                  message : "Having some technical issues",
+                  err
+                })
+              } else {
+                for (let i = 0; i < dueResults.length; i++) {
+                  var customer = dueResults[i].user_id;
+                  dueResults[i].customerDetails = await customerDetails(customer);
+    
+                  const saleAddOns = dueResults[i].sale_id;
+                  dueResults[i].addOnDetails = await saleAddOnDetails(saleAddOns);
+    
+                  const saleExchange = dueResults[i].sale_id;
+                  dueResults[i].exchangeDetails = await saleExchangeDetails(
+                    saleExchange
+                  );
+    
+                  const salePrice = dueResults[i].sale_id;
+                  dueResults[i].priceDetails = await salePriceDetails(salePrice);
+                }
+                res.status(200).json({
+                  success: true,
+                  message: "Sale found succesfully.",
+                  dueResults,
+                });
+              }
+            })
+          }
+        }
+      });
+    } else {
+      res.status(401).json({
+        success: false,
+        message: "invalidToken",
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error,
+    });
+  }
+});
+
 // SALES LIST
-sales.post("/list", (req, res) => {
+sales.post("/sales/list", (req, res) => {
   try {
     const salesCount = req.body.sales_count;
     const salesStatus = req.body.sales_status;
@@ -1074,23 +1348,21 @@ sales.post("/list", (req, res) => {
         });
       };
 
-      let salesQuery = `SELECT * FROM sale_details WHERE sale_ifdeleted='0'`;
+      let salesQuery = `SELECT * FROM sale_details WHERE sale_ifdeleted='0' `;
 
       // SALE STATUS
-      if (salesStatus != null || '' || undefined) {
+      if (salesStatus != null || "" || undefined) {
         salesQuery += ` AND sale_status='${salesStatus}'`;
-      }else{
-        salesQuery += ``
+      } else {
+        salesQuery += ``;
       }
 
       // SALE COUNT
-      if (salesCount != null || undefined || '') {
+      if (salesCount != null || undefined || "") {
         salesQuery += ` ORDER BY id DESC LIMIT ${salesCount}`;
-      }else{
-        salesQuery += ``
+      } else {
+        salesQuery += ``;
       }
-
-      console.log(salesQuery);
 
       // Database Query which takes above conditions and implements them.
       database.query(salesQuery, async (err, saleResults) => {
